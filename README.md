@@ -69,4 +69,3 @@ graph TD
    - Cấp quyền thực thi: `chmod +x tool.sh`
    - Chạy menu điều khiển: `./tool.sh`
    - Từ menu, bạn có thể thực hiện `Deploy` ứng dụng, `Backup` hoặc `Health-check`.
-# linux-final-project
