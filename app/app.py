@@ -30,7 +30,7 @@ def getProduct():
     try:
         db = get_db_connection()
         cur = db.cursor()
-        cur.execute("SELECT * FROM product;")
+        cur.execute("SELECT * FROM products;")
         data = cur.fetchall()
         cur.close()
         db.close()
@@ -49,7 +49,7 @@ def createProduct():
         try:
             db = get_db_connection()
             cur = db.cursor()
-            cur.execute("INSERT INTO product (name) VALUES (%s) RETURNING *;", (name,))
+            cur.execute("INSERT INTO products (name) VALUES (%s) RETURNING *;", (name,))
             new_product = cur.fetchone()
             db.commit()
             cur.close()
