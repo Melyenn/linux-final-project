@@ -1,0 +1,27 @@
+[Unit]
+Description=Flask Application Service
+After=network.target postgresql.service
+
+[Service]
+# Nguyên tắc đặc quyền tối thiểu: sử dụng user thường để chạy app
+User=duyen
+Group=duyen
+
+# Cập nhật thành đường dẫn THỰC TẾ của thư mục dự án
+WorkingDirectory=/home/duyen/linux-final-project/app
+
+# Định nghĩa nạp biến môi trường bằng EnvironmentFile
+EnvironmentFile=/home/duyen/linux-final-project/.env
+
+# Lệnh khởi chạy ứng dụng (Sử dụng python trong môi trường ảo - .venv)
+ExecStart=/home/duyen/linux-final-project/.venv/bin/python app.py
+
+# Tự động khởi động lại nếu ứng dụng lỗi (Crash)
+Restart=on-failure
+
+# Log sẽ tự động đẩy về journald qua stdout/stderr
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

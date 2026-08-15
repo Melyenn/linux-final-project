@@ -4,7 +4,6 @@ from flask import Flask, request, jsonify
 import psycopg2
 from dotenv import load_dotenv
 
-# Nạp các biến môi trường từ file .env
 load_dotenv()
 
 DB_DATABASE = os.getenv("DB_DATABASE", default="appdb")
