@@ -4,10 +4,10 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# 1. Đọc và tự động export biến môi trường từ file .env ở thư mục gốc của project
+# 1. Đọc và tự động export biến môi trường từ file .env ở thư mục gốc của project (loại bỏ ký tự \r của Windows)
 if [ -f "$PROJECT_ROOT/.env" ]; then
     set -a
-    source "$PROJECT_ROOT/.env"
+    eval "$(tr -d '\r' < "$PROJECT_ROOT/.env")"
     set +a
 fi
 
@@ -35,12 +35,20 @@ BACKUP_FILE="${BACKUP_DIR}/appdb_backup_${TIMESTAMP}.sql"
 
 mkdir -p "$BACKUP_DIR"
 
-# 4. Thực hiện backup
+# 4. Thực hiện backup với file .pgpass tạm thời
 echo "Bắt đầu sao lưu cơ sở dữ liệu ${DB_DATABASE}..."
-export PGPASSWORD="${DB_PASSWORD}"
-pg_dump -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -F c -b -v -f "${BACKUP_FILE}" "${DB_DATABASE}"
+
+# Tạo file pgpass tạm thời
+PGPASS_TMP=$(mktemp)
+echo "${DB_HOST}:${DB_PORT}:${DB_DATABASE}:${DB_USER}:${DB_PASSWORD}" > "$PGPASS_TMP"
+chmod 600 "$PGPASS_TMP"
+
+# Chạy pg_dump với PGPASSFILE
+PGPASSFILE="$PGPASS_TMP" pg_dump -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -F c -b -v -f "${BACKUP_FILE}" "${DB_DATABASE}"
 RC=$?
-unset PGPASSWORD
+
+# Xóa file pgpass tạm thời
+rm -f "$PGPASS_TMP"
 
 if [ $RC -eq 0 ]; then
     echo "Sao lưu thành công! File lưu tại: ${BACKUP_FILE}"
