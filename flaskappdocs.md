@@ -19,4 +19,11 @@ $ ls -l .env
 -rw------- 1 duyen duyen 22 Aug 11 06:42 .env
 ```
 
-## Sao lưu CSDL (mysqldump hoặc pg_dump) do bộ công cụ ở Mục 6 đảm nhận, theo phần nền tảng §3.3.
+## Sao lưu CSDL (mysqldump hoặc pg_dump) do bộ công cụ ở Mục 6 đảm nhận, theo phần nền tảng §3.3. (Hoàn thành 09:38 15/08/2026)
+```bash
+chmod +x toolkit/backup_db.sh
+
+cd toolkit
+./backup_db.sh
+```
+
