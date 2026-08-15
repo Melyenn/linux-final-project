@@ -27,7 +27,9 @@ mkdir -p "$BACKUP_DIR"
 
 # 3. Thực hiện backup
 echo "Bắt đầu sao lưu cơ sở dữ liệu ${DB_DATABASE}..."
-PGPASSWORD="${DB_PASSWORD}" pg_dump -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -F c -b -v -f "${BACKUP_FILE}" "${DB_DATABASE}"
+export PGPASSWORD="${DB_PASSWORD}"
+pg_dump -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -F c -b -v -f "${BACKUP_FILE}" "${DB_DATABASE}"
+unset PGPASSWORD
 
 if [ $? -eq 0 ]; then
     echo "Sao lưu thành công! File lưu tại: ${BACKUP_FILE}"
