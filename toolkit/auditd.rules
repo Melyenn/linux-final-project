@@ -1,0 +1,21 @@
+# ================================================================
+# File        : toolkit/auditd.rules
+# Description : Auditd rules for monitoring sensitive system files
+# ================================================================
+
+# Delete all existing audit rules before loading new ones
+-D
+
+# Set internal audit buffer size (messages)
+-b 8192
+
+# Failure mode flag: 1 = printk (log to syslog), 2 = panic
+-f 1
+
+# Monitor /etc/passwd for write (w) and attribute changes (a)
+# Key label: identity_passwd
+-w /etc/passwd -p wa -k identity_passwd
+
+# Monitor /etc/shadow for read (r), write (w), and attribute changes (a)
+# Key label: identity_shadow
+-w /etc/shadow -p rwa -k identity_shadow

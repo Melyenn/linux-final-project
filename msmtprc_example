@@ -1,0 +1,17 @@
+# Set default values for all following accounts.
+defaults
+auth           on
+tls            on
+tls_trust_file /etc/ssl/certs/ca-certificates.crt
+logfile        /var/log/msmtp.log
+
+# Gmail Configuration
+account        gmail
+host           smtp.gmail.com
+port           587
+from           YOUR_GMAIL_ADDRESS@gmail.com
+user           YOUR_GMAIL_ADDRESS@gmail.com
+password       "16_KY_TU_APP_PASSWORD"
+
+# Set a default account
+account default : gmail
