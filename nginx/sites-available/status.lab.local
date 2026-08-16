@@ -1,0 +1,13 @@
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name status.lab.local;
+
+    root /var/www/status.lab.local;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}

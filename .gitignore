@@ -1,2 +1,5 @@
 .env
 .venv
+*_ed25519
+*.key
+*.pem
