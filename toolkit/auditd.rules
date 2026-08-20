@@ -12,10 +12,29 @@
 # Failure mode flag: 1 = printk (log to syslog), 2 = panic
 -f 1
 
+# ----------------------------------------------------------------
+# 1. System Identity & Privilege Escalation Monitoring
+# ----------------------------------------------------------------
 # Monitor /etc/passwd for write (w) and attribute changes (a)
-# Key label: identity_passwd
 -w /etc/passwd -p wa -k identity_passwd
 
 # Monitor /etc/shadow for read (r), write (w), and attribute changes (a)
-# Key label: identity_shadow
 -w /etc/shadow -p rwa -k identity_shadow
+
+# Monitor /etc/sudoers for read (r), write (w), and attribute changes (a)
+-w /etc/sudoers -p rwa -k sys_sudoers
+
+# ----------------------------------------------------------------
+# 2. Application Secrets & Configuration Monitoring
+# ----------------------------------------------------------------
+# Monitor App environment secret file
+-w /etc/myapp/app.env -p rwa -k app_secret
+
+# Monitor MSMTP credentials config
+-w /etc/msmtprc -p rwa -k mail_secret
+
+# ----------------------------------------------------------------
+# 3. Application Code Integrity Monitoring
+# ----------------------------------------------------------------
+# Monitor production Flask codebase for write (w) and attribute changes (a)
+-w /opt/myapp/app.py -p wa -k app_code_change
