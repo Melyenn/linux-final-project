@@ -1,6 +1,6 @@
 # Đồ Án Cuối Kỳ - Hệ Điều Hành Linux & Ứng Dụng
 
-**Nhóm:** `<Mã Nhóm của bạn - VD: N05>`
+**Nhóm:** ``
 **Môn học:** Hệ điều hành Linux & Ứng dụng
 **Khoa:** Công nghệ Thông tin - Trường ĐH Khoa học Tự nhiên, ĐHQG-HCM
 
@@ -9,13 +9,15 @@
 ## 1. Hướng đồ án đã chọn
 
 Hệ thống được xây dựng và triển khai dựa trên các công nghệ sau:
-- **Hệ điều hành:** `<CentOS Stream 9>`
-- **Web Server (Reverse Proxy):** `<Nginx>`
-- **Ứng dụng:** `<Flask>`
-- **Cơ sở dữ liệu:** `<PostgreSQL>`
-- **Tường lửa:** `<firewalld>`
-- **Điểm thưởng:** `<TLS>`
-
+- **Hệ điều hành:** `Ubuntu 22.04`
+- **Web Server (Reverse Proxy):** `Nginx`
+- **Ứng dụng:** `Flask`
+- **Cơ sở dữ liệu:** `PostgreSQL`
+- **Tường lửa:** `UFW`
+- **Mạng:**
+- **Cấu hình VM:** 2 CPU, 4GB RAM
+- **Cấu hình nâng cao:** `TLS`
+- **Kênh nhận thông báo:** `Mail, Telegram`
 ---
 
 ## 2. Bảng phân công thành viên
@@ -54,18 +56,17 @@ graph TD
 Để cấu hình và khởi chạy hệ thống này từ đầu trên một máy ảo mới, vui lòng thực hiện các bước sau:
 
 1. **Chuẩn bị môi trường:** 
-   - Khởi tạo 2 máy ảo `[CentOS Stream 9]` với cấu hình tối thiểu 2 vCPU, 2GB RAM.
+   - Khởi tạo 2 máy ảo `Ubuntu 22.04` với cấu hình tối thiểu 2 vCPU, 4GB RAM.
    - Cấp quyền `sudo` cho tài khoản người dùng và thiết lập khóa SSH giữa các máy ảo.
 
 2. **Khôi phục cấu hình Dịch vụ:**
    - Cài đặt các package cần thiết: `[nginx]`, `[postgresql]`, `[fail2ban]`, `[auditd]`, `[jq]`.
-   - Sao chép các tệp cấu hình trong thư mục nộp bài vào đúng vị trí tương ứng trên máy ảo (như chỉ định trong Báo cáo). *Lưu ý thay thế các placeholder (ví dụ: `<DB_PASSWORD>`) bằng thông tin thật qua EnvironmentFile.*
+   - Sao chép các tệp cấu hình trong thư mục nộp bài vào đúng vị trí tương ứng trên máy ảo (như chỉ định trong Báo cáo). Tạo file .env dựa trên mẫu .env.example.
+   - Dùng lệnh `pip install -r requirements.txt` để cài đặt các thư viện Python.
 
 3. **Chạy ứng dụng:**
-   - Đặt file `.service` vào `/etc/systemd/system/`.
-   - Chạy lệnh `sudo systemctl daemon-reload` và `sudo systemctl enable --now [tên-app].service`.
+   - Đặt file `flaskapp.service` vào `/etc/systemd/system/`.
+   - Chạy lệnh `sudo systemctl daemon-reload` và `sudo systemctl enable --now flaskapp.service`.
 
 4. **Khởi chạy bộ công cụ Bash Script:**
-   - Cấp quyền thực thi: `chmod +x tool.sh`
-   - Chạy menu điều khiển: `./tool.sh`
-   - Từ menu, bạn có thể thực hiện `Deploy` ứng dụng, `Backup` hoặc `Health-check`.
+   
