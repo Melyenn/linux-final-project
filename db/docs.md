@@ -14,13 +14,13 @@ sudo apt update && sudo apt install -y postgresql postgresql-contrib
 ### Đọc biến DB_PASSWORD và tạo CSDL, User (Hoàn thành: 21:25 10/08/2026)
 ```bash
 # init database
-cat db/init.sql | sudo -u postgres psql -v db_password="'[PASSWORD]'"
+cat db/init-db.sql | (cd /tmp && sudo -u postgres psql -v db_password='Demo@@123')
 ```
 
 ## 3. Kiểm tra kết nối CSDL (Hoàn thành 21:29 10/08/2026)
 ```bash
 # Kiểm tra kết nối
-psql -h 127.0.0.1 -U appuser -d appdb -c "\conninfo"
+PGPASSWORD='Demo@@123' psql -h 127.0.0.1 -U appuser -d appdb -c "\conninfo"
 ```
 
 ## 4. Cấu hình CSDL chỉ nghe trên localhost (Hoàn thành 21:33 10/08/2026)
@@ -38,4 +38,3 @@ sudo systemctl restart postgresql
 sudo ss -tulpn | grep -E "Netid|5432"
 
 ```
-
