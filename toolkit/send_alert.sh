@@ -3,11 +3,13 @@
 # ================================================================
 # File        : toolkit/send_alert.sh
 # Description : Dual-channel Alerting Module (Telegram Bot & Email)
+# Author      : Nguyen Nam Viet - Capstone Linux Team
+# Standard    : Shellcheck Clean, Text-Only, POSIX/Bash Compliant
 # ================================================================
 
 set -euo pipefail
 
-ENV_FILE="/etc/myapp/app.env"
+ENV_FILE="/etc/myapp/toolkit.env"
 
 # Exit code constants
 readonly EXIT_SUCCESS=0

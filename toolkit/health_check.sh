@@ -3,12 +3,14 @@
 # ================================================================
 # File        : toolkit/health-check.sh
 # Description : System Health and Resource Threshold Monitor
+# Author      : Nguyen Nam Viet - Capstone Linux Team
+# Standard    : Shellcheck Clean, Text-Only, POSIX/Bash Compliant
 # ================================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="/etc/myapp/app.env"
+ENV_FILE="/etc/myapp/toolkit.env"
 ALERT_SCRIPT="${SCRIPT_DIR}/send_alert.sh"
 
 # Exit code constants
@@ -22,7 +24,7 @@ RAM_THRESHOLD="${RAM_THRESHOLD:-85}"
 DISK_THRESHOLD="${DISK_THRESHOLD:-90}"
 
 # Mandatory services and ports to monitor
-readonly MONITORED_SERVICES=("myapp.service" "postgresql" "nginx")
+readonly MONITORED_SERVICES=("flaskapp.service" "postgresql" "nginx")
 readonly MONITORED_PORTS=(5000 5432 80)
 
 # Load environment configuration if available
@@ -56,7 +58,7 @@ append_anomaly() {
 check_cpu() {
     echo "[INFO] Checking CPU usage..."
     local cpu_idle
-    cpu_idle=$(top -bn1 | awk '/%Cpu/ {print $8}' | cut -d'.' -f1)
+    cpu_idle=$(LC_ALL=C mpstat 1 1 | awk '/Average:/ && $2 == "all" {printf "%.0f\n", $NF}')
     
     # Handle idle calculation edge case
     if [[ -z "$cpu_idle" || ! "$cpu_idle" =~ ^[0-9]+$ ]]; then

@@ -3,13 +3,15 @@
 # ================================================================
 # File        : toolkit/menu.sh
 # Description : Operational CLI Menu and Task Dispatcher
+# Author      : Nguyen Nam Viet - Capstone Linux Team
+# Standard    : Shellcheck Clean, Text-Only, POSIX/Bash Compliant
 # ================================================================
 
 set -euo pipefail
 
 # Define script directory dynamically to allow execution from anywhere
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="/etc/myapp/app.env"
+#ENV_FILE="/etc/myapp/app.env"
 
 # Exit code constants
 readonly EXIT_SUCCESS=0
@@ -18,10 +20,10 @@ readonly EXIT_INVALID_USAGE=2
 readonly EXIT_FILE_NOT_FOUND=127
 
 # Load environment configuration if present
-if [[ -f "$ENV_FILE" ]]; then
+#if [[ -f "$ENV_FILE" ]]; then
     # shellcheck source=/dev/null
-    source "$ENV_FILE"
-fi
+    #source "$ENV_FILE"
+#fi
 
 # Cleanup and error handling trap
 cleanup() {
@@ -85,7 +87,7 @@ task_deploy() {
 
 # shellcheck disable=SC2120
 task_backup() {
-    dispatch_task "backup_db.sh" "$@"
+    dispatch_task "backup.sh" "$@"
 }
 
 # shellcheck disable=SC2120
