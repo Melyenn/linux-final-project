@@ -11,6 +11,9 @@ WHERE NOT EXISTS (
     SELECT FROM pg_roles WHERE rolname = 'appuser'
 )\gexec
 
+-- Keep the application user's password in sync with the provided secret.
+SELECT format('ALTER USER appuser WITH PASSWORD %L', :'db_password')\gexec
+
 \connect appdb
 
 -- Application only needs access to its database/schema
