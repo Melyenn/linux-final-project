@@ -22,7 +22,7 @@ RAM_THRESHOLD="${RAM_THRESHOLD:-85}"
 DISK_THRESHOLD="${DISK_THRESHOLD:-90}"
 
 # Mandatory services and ports to monitor
-readonly MONITORED_SERVICES=("myapp.service" "postgresql" "nginx")
+readonly MONITORED_SERVICES=("flaskapp.service" "postgresql" "nginx")
 readonly MONITORED_PORTS=(5000 5432 80)
 
 # Load environment configuration if available
