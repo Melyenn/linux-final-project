@@ -4,17 +4,12 @@ WHERE NOT EXISTS (
     SELECT FROM pg_database WHERE datname = 'appdb'
 )\gexec
 
--- Create application user if it does not exist
-DO
-$$
-BEGIN
-    IF NOT EXISTS (
-        SELECT FROM pg_roles WHERE rolname = 'appuser'
-    ) THEN
-        CREATE USER appuser WITH PASSWORD :'db_password';
-    END IF;
-END
-$$;
+-- Create application user if it does not exist.
+-- psql variables are not expanded inside DO $$...$$ blocks, so use \gexec.
+SELECT format('CREATE USER appuser WITH PASSWORD %L', :'db_password')
+WHERE NOT EXISTS (
+    SELECT FROM pg_roles WHERE rolname = 'appuser'
+)\gexec
 
 \connect appdb
 
