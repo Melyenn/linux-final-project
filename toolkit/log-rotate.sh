@@ -3,11 +3,13 @@
 # ================================================================
 # File        : toolkit/log-rotate.sh
 # Description : Log Rotation and Compression Tool with Retention Policy
+# Author      : Nguyen Nam Viet - Capstone Linux Team
+# Standard    : Shellcheck Clean, Text-Only, POSIX/Bash Compliant
 # ================================================================
 
 set -euo pipefail
 
-ENV_FILE="/etc/myapp/app.env"
+#ENV_FILE="/etc/myapp/app.env"
 
 # Exit code constants
 readonly EXIT_SUCCESS=0
@@ -20,10 +22,10 @@ TARGET_LOG="${LOG_FILE:-/var/log/myapp/app.log}"
 RETENTION_COUNT="${RETENTION_COUNT:-7}"
 
 # Load environment configuration if available
-if [[ -f "$ENV_FILE" ]]; then
+#if [[ -f "$ENV_FILE" ]]; then
     # shellcheck source=/dev/null
-    source "$ENV_FILE"
-fi
+    #source "$ENV_FILE"
+#fi
 
 # Cleanup and error handling trap
 cleanup() {

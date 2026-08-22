@@ -37,4 +37,5 @@
 # 3. Application Code Integrity Monitoring
 # ----------------------------------------------------------------
 # Monitor production Flask codebase for write (w) and attribute changes (a)
--w /opt/myapp/app.py -p wa -k app_code_change
+-w /home/duyen/linux-final-project/app/app.py -p wa -k app_code_change
+-w /etc/myapp/toolkit.env -p rwa -k toolkit_secret

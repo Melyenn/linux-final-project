@@ -60,4 +60,4 @@ def createProduct():
     return jsonify({"error": "Request must be JSON"}), 400
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)

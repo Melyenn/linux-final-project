@@ -6,7 +6,7 @@ DB_NAME="appdb"
 BACKUP_DIR="/data/backups"
 RETENTION_DAYS=7
 
-APP_SOURCE="/opt/myapp/app.py"
+APP_SOURCE="/home/duyen/linux-final-project/app/app.py"
 STATUS_SOURCE="/var/www/status.lab.local"
 
 REMOTE_USER="phat"
@@ -55,11 +55,13 @@ mkdir -p "$TEMP_DIR/web/app"
 mkdir -p "$TEMP_DIR/web/status"
 
 echo "[INFO] Dumping PostgreSQL database..."
-sudo -u postgres pg_dump \
-    --clean \
-    --if-exists \
-    -d "$DB_NAME" \
-    | tee "$TEMP_DIR/database/appdb.sql" > /dev/null
+(
+    cd /tmp
+    sudo -u postgres pg_dump \
+        --clean \
+        --if-exists \
+        -d "$DB_NAME"
+) | tee "$TEMP_DIR/database/appdb.sql" > /dev/null
 
 echo "[INFO] Copying web content..."
 cp "$APP_SOURCE" "$TEMP_DIR/web/app/app.py"

@@ -3,86 +3,179 @@
 # ================================================================
 # File        : toolkit/deploy.sh
 # Description : Safe Application Deployment with Automated Rollback
+# Author      : Nguyen Nam Viet - Capstone Linux Team
 # ================================================================
 
-set -euo pipefail
+set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ENV_FILE="/etc/myapp/app.env"
 ALERT_SCRIPT="${SCRIPT_DIR}/send_alert.sh"
 
-# Exit code constants
 readonly EXIT_SUCCESS=0
-# readonly EXIT_GENERAL_ERROR=1
 readonly EXIT_INVALID_USAGE=2
 readonly EXIT_HEALTH_CHECK_FAILED=5
 
-# System deployment paths matching interfaces.md
-APP_DIR="/opt/myapp"
+APP_DIR="/home/duyen/linux-final-project/app"
+APP_OWNER="duyen"
+APP_GROUP="duyen"
+
+PYTHON_BIN="/home/duyen/linux-final-project/.venv/bin/python"
+SERVICE_NAME="flaskapp.service"
+
 BACKUP_RELEASE_DIR="/var/backups/myapp/releases"
 ROLLBACK_BACKUP_DIR="${BACKUP_RELEASE_DIR}/previous_release"
-SERVICE_NAME="myapp.service"
+
 HEALTH_CHECK_URL="http://127.0.0.1:5000/products"
-SOURCE_DIR="${REPO_ROOT}/app"
 
-# State flags
+# Default source is the canonical application itself.
+# A different source can be supplied with --source.
+SOURCE_DIR="${APP_DIR}"
+
 IS_DEPLOYING=false
+STAGING_DIR=""
 
-# Load environment configuration if available
-if [[ -f "$ENV_FILE" ]]; then
-    # shellcheck source=/dev/null
-    source "$ENV_FILE"
-fi
-
-# Function to execute rollback to previous release
-rollback() {
-    echo "[WARN] Deployment failed! Executing automatic rollback..." >&2
-
-    if [[ -d "$ROLLBACK_BACKUP_DIR" && -n "$(ls -A "$ROLLBACK_BACKUP_DIR")" ]]; then
-        echo "[INFO] Restoring previous application codebase from $ROLLBACK_BACKUP_DIR..."
-        mkdir -p "$APP_DIR"
-        rm -rf "${APP_DIR:?}"/*
-        cp -r "${ROLLBACK_BACKUP_DIR}"/* "$APP_DIR/"
-        
-        echo "[INFO] Resetting file permissions..."
-        chmod -R 755 "$APP_DIR"
-
-        echo "[INFO] Restarting systemd service: $SERVICE_NAME..."
-        systemctl restart "$SERVICE_NAME" || true
-        systemctl reload nginx || true
-
-        echo "[INFO] Rollback completed. System restored to previous working version."
-    else
-        echo "[CRITICAL] No rollback backup found at $ROLLBACK_BACKUP_DIR! System requires manual intervention." >&2
-    fi
-
-    if [[ -x "$ALERT_SCRIPT" ]]; then
-        echo "[INFO] Triggering failure alert notification..."
-        "$ALERT_SCRIPT" "DEPLOYMENT FAILED" "Application deployment failed on $(hostname). Automatic rollback was executed." || true
+cleanup_staging() {
+    if [[ -n "${STAGING_DIR:-}" && -d "$STAGING_DIR" ]]; then
+        rm -rf "$STAGING_DIR"
+        STAGING_DIR=""
     fi
 }
 
-# Cleanup and error handling trap
+wait_for_application() {
+    local max_attempts="${1:-5}"
+    local attempt
+
+    for ((attempt=1; attempt<=max_attempts; attempt++)); do
+        echo "[INFO] Health check attempt ${attempt}/${max_attempts}..."
+
+        if curl -fsS -m 5 "$HEALTH_CHECK_URL" >/dev/null; then
+            echo "[INFO] Application health check passed."
+            return 0
+        fi
+
+        if [[ "$attempt" -lt "$max_attempts" ]]; then
+            sleep 2
+        fi
+    done
+
+    return 1
+}
+
+rollback() {
+    echo "[WARN] Deployment failed. Executing automatic rollback..." >&2
+
+    if [[ ! -d "$ROLLBACK_BACKUP_DIR" ]] || \
+       [[ -z "$(ls -A "$ROLLBACK_BACKUP_DIR" 2>/dev/null)" ]]; then
+        echo "[CRITICAL] No rollback backup available at:" >&2
+        echo "[CRITICAL] $ROLLBACK_BACKUP_DIR" >&2
+        return 1
+    fi
+
+    echo "[INFO] Restoring previous application code..."
+    echo "[INFO] Source: $ROLLBACK_BACKUP_DIR"
+    echo "[INFO] Target: $APP_DIR"
+
+    mkdir -p "$APP_DIR" || return 1
+
+    find "$APP_DIR" \
+        -mindepth 1 \
+        -maxdepth 1 \
+        -exec rm -rf -- {} + || return 1
+
+    cp -a "${ROLLBACK_BACKUP_DIR}/." "$APP_DIR/" || return 1
+
+    echo "[INFO] Restoring ownership and permissions..."
+    chown -R "${APP_OWNER}:${APP_GROUP}" "$APP_DIR" || return 1
+
+    find "$APP_DIR" \
+        -type d \
+        -exec chmod 755 {} + || return 1
+
+    if [[ -f "${APP_DIR}/app.py" ]]; then
+        chmod 664 "${APP_DIR}/app.py" || return 1
+    fi
+
+    echo "[INFO] Resetting systemd failure state..."
+    sudo systemctl reset-failed "$SERVICE_NAME" || true
+
+    echo "[INFO] Restarting $SERVICE_NAME..."
+    if ! sudo systemctl restart "$SERVICE_NAME"; then
+        echo "[CRITICAL] Failed to restart $SERVICE_NAME after rollback." >&2
+        return 1
+    fi
+
+    echo "[INFO] Waiting for rolled-back application to become ready..."
+    if ! wait_for_application 5; then
+        echo "[CRITICAL] Application did not recover after rollback." >&2
+        return 1
+    fi
+
+    echo "[INFO] Validating Nginx..."
+    if ! sudo nginx -t; then
+        echo "[CRITICAL] Nginx validation failed after rollback." >&2
+        return 1
+    fi
+
+    if ! sudo systemctl reload nginx; then
+        echo "[CRITICAL] Failed to reload Nginx after rollback." >&2
+        return 1
+    fi
+
+    echo "[INFO] Rollback completed and application health verified."
+    return 0
+}
+
 cleanup() {
     local exit_code=$?
-    if [[ "$exit_code" -ne 0 && "$IS_DEPLOYING" == "true" ]]; then
-        echo "[ERROR] Deployment error occurred on line $1 with exit code $exit_code." >&2
-        rollback
-    fi
-}
-trap 'cleanup $LINENO' ERR
 
-# Display usage help
+    # Avoid recursive EXIT handling.
+    trap - EXIT
+
+    cleanup_staging
+
+    if [[ "$exit_code" -ne 0 && "$IS_DEPLOYING" == "true" ]]; then
+        echo "[ERROR] Deployment exited with code $exit_code." >&2
+
+        if rollback; then
+            if [[ -x "$ALERT_SCRIPT" ]]; then
+                "$ALERT_SCRIPT" \
+                    "DEPLOYMENT FAILED - ROLLBACK SUCCESSFUL" \
+                    "Deployment failed on $(hostname). The previous release was restored and verified successfully." \
+                    || true
+            fi
+        else
+            echo "[CRITICAL] AUTOMATIC ROLLBACK FAILED." >&2
+            echo "[CRITICAL] Manual intervention is required." >&2
+
+            if [[ -x "$ALERT_SCRIPT" ]]; then
+                "$ALERT_SCRIPT" \
+                    "CRITICAL DEPLOYMENT FAILURE" \
+                    "Deployment failed on $(hostname) and automatic rollback could not restore application health. Manual intervention is required." \
+                    || true
+            fi
+        fi
+    fi
+
+    exit "$exit_code"
+}
+
+trap cleanup EXIT
+
 show_help() {
     cat << EOF
 Usage: $(basename "$0") [OPTIONS]
 
-Safely deploy application code to ${APP_DIR} with automated rollback.
+Safely deploy Flask application code with automatic rollback.
+
+Target:
+  ${APP_DIR}
+
+Default source:
+  ${SOURCE_DIR}
 
 Options:
-  -s, --source <dir>   Path to source app directory (default: ${SOURCE_DIR})
-  -h, --help           Display this help message and exit
+  -s, --source <dir>   Deploy from another application directory
+  -h, --help           Display this help message
 
 Examples:
   $(basename "$0")
@@ -90,11 +183,14 @@ Examples:
 EOF
 }
 
-# Main deployment routine
 main() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -s|--source)
+                if [[ $# -lt 2 ]]; then
+                    echo "[ERROR] --source requires a directory." >&2
+                    exit "$EXIT_INVALID_USAGE"
+                fi
                 SOURCE_DIR="$2"
                 shift 2
                 ;;
@@ -111,90 +207,110 @@ main() {
     done
 
     echo "[INFO] Starting application deployment on $(hostname)..."
+    echo "[INFO] Source : $SOURCE_DIR"
+    echo "[INFO] Target : $APP_DIR"
+    echo "[INFO] Service: $SERVICE_NAME"
 
-    # Step 1: Validate source directory
+    # Step 1: Validate source.
     if [[ ! -d "$SOURCE_DIR" ]]; then
         echo "[ERROR] Source directory does not exist: $SOURCE_DIR" >&2
         exit "$EXIT_INVALID_USAGE"
     fi
 
-    # Enable deployment tracking flag for rollback trap
-    IS_DEPLOYING=true
+    # Step 2: Stage source before touching the live app.
+    echo "[INFO] Staging deployment source..."
+    STAGING_DIR="$(mktemp -d)"
+    cp -a "${SOURCE_DIR}/." "$STAGING_DIR/"
 
-    # Step 2: Create pre-deploy backup of current code
-    echo "[INFO] Creating pre-deploy backup..."
+    # Step 3: Validate candidate Python syntax in staging.
+    echo "[INFO] Validating staged Python application syntax..."
+
+    if [[ ! -f "${STAGING_DIR}/app.py" ]]; then
+        echo "[ERROR] app.py not found in deployment source." >&2
+        exit "$EXIT_INVALID_USAGE"
+    fi
+
+    if ! "$PYTHON_BIN" \
+        -c 'import sys; compile(open(sys.argv[1], encoding="utf-8").read(), sys.argv[1], "exec")' \
+        "${STAGING_DIR}/app.py"; then
+        echo "[ERROR] Python syntax validation failed." >&2
+        echo "[ERROR] Live application was not modified." >&2
+        exit "$EXIT_INVALID_USAGE"
+    fi
+
+    echo "[INFO] Python syntax validation passed."
+
+    # Step 4: Validate Nginx before touching the live app.
+    echo "[INFO] Testing Nginx configuration..."
+    if ! sudo nginx -t; then
+        echo "[ERROR] Nginx configuration validation failed." >&2
+        echo "[ERROR] Live application was not modified." >&2
+        exit "$EXIT_INVALID_USAGE"
+    fi
+
+    # Step 5: Create rollback snapshot.
+    echo "[INFO] Creating pre-deployment rollback backup..."
     mkdir -p "$BACKUP_RELEASE_DIR"
     rm -rf "$ROLLBACK_BACKUP_DIR"
     mkdir -p "$ROLLBACK_BACKUP_DIR"
 
-    if [[ -d "$APP_DIR" && -n "$(ls -A "$APP_DIR")" ]]; then
-        cp -r "${APP_DIR}"/* "$ROLLBACK_BACKUP_DIR/"
-        echo "[INFO] Current version backed up to $ROLLBACK_BACKUP_DIR"
+    if [[ -d "$APP_DIR" ]] && [[ -n "$(ls -A "$APP_DIR" 2>/dev/null)" ]]; then
+        cp -a "${APP_DIR}/." "$ROLLBACK_BACKUP_DIR/"
+        echo "[INFO] Current release backed up to:"
+        echo "[INFO] $ROLLBACK_BACKUP_DIR"
     else
-        echo "[INFO] Target directory $APP_DIR is empty. Skipping backup content."
+        echo "[ERROR] Live application directory is empty." >&2
+        echo "[ERROR] Refusing deployment because rollback would be impossible." >&2
+        exit "$EXIT_INVALID_USAGE"
     fi
 
-    # Step 3: Copy new code to target directory
-    echo "[INFO] Syncing new code to $APP_DIR..."
-    mkdir -p "$APP_DIR"
-    rm -rf "${APP_DIR:?}"/*
-    cp -r "${SOURCE_DIR}"/* "$APP_DIR/"
+    # Any failure beyond here must trigger rollback.
+    IS_DEPLOYING=true
 
-    # Step 4: Set proper ownership and permissions
-    echo "[INFO] Setting ownership and permissions..."
-    chmod -R 755 "$APP_DIR"
+    # Step 6: Replace live application.
+    echo "[INFO] Deploying staged application..."
+    find "$APP_DIR" \
+        -mindepth 1 \
+        -maxdepth 1 \
+        -exec rm -rf -- {} +
+
+    cp -a "${STAGING_DIR}/." "$APP_DIR/"
+    cleanup_staging
+
+    # Step 7: Restore canonical ownership/permissions.
+    echo "[INFO] Setting application ownership and permissions..."
+    chown -R "${APP_OWNER}:${APP_GROUP}" "$APP_DIR"
+
+    find "$APP_DIR" \
+        -type d \
+        -exec chmod 755 {} +
+
     if [[ -f "${APP_DIR}/app.py" ]]; then
-        chmod 644 "${APP_DIR}/app.py"
+        chmod 664 "${APP_DIR}/app.py"
     fi
 
-    # Step 5: Pre-flight Nginx configuration test
-    echo "[INFO] Testing Nginx configuration syntax..."
-    if command -v nginx &>/dev/null; then
-        nginx -t
-    else
-        echo "[INFO] Nginx not installed locally. Skipping nginx -t."
-    fi
+    # Step 8: Restart Flask.
+    echo "[INFO] Restarting $SERVICE_NAME..."
+    sudo systemctl reset-failed "$SERVICE_NAME" || true
+    sudo systemctl restart "$SERVICE_NAME"
 
-    # Step 6: Reload services safely
-    echo "[INFO] Reloading systemd service: $SERVICE_NAME..."
-    if systemctl is-active --quiet "$SERVICE_NAME"; then
-        systemctl reload-or-restart "$SERVICE_NAME"
-    else
-        systemctl start "$SERVICE_NAME"
-    fi
-
-    if command -v nginx &>/dev/null && systemctl is-active --quiet nginx; then
-        echo "[INFO] Reloading Nginx web server..."
-        systemctl reload nginx
-    fi
-
-    # Step 7: Post-deployment Health Check
-    echo "[INFO] Running post-deployment HTTP health check on $HEALTH_CHECK_URL..."
-    local attempts=0
-    local max_attempts=3
-    local health_pass=false
-
-    while [[ "$attempts" -lt "$max_attempts" ]]; do
-        attempts=$(( attempts + 1 ))
-        echo "[INFO] Health check attempt ${attempts}/${max_attempts}..."
-        
-        if curl -s -f -m 5 "$HEALTH_CHECK_URL" &>/dev/null; then
-            health_pass=true
-            break
-        fi
-        sleep 2
-    done
-
-    if [[ "$health_pass" == "false" ]]; then
-        echo "[ERROR] Health check failed! Endpoint $HEALTH_CHECK_URL did not respond with 200 OK." >&2
-        # Raising error will trigger ERR trap and execute rollback()
+    # Step 9: Health check.
+    echo "[INFO] Waiting for application health check..."
+    if ! wait_for_application 5; then
+        echo "[ERROR] Deployment health check failed." >&2
         return "$EXIT_HEALTH_CHECK_FAILED"
     fi
 
-    # Disable deployment flag as deployment succeeded
+    # Step 10: Reload Nginx.
+    echo "[INFO] Reloading Nginx..."
+    sudo systemctl reload nginx
+
     IS_DEPLOYING=false
-    echo "[INFO] Deployment completed successfully! Application is live and healthy."
-    exit "$EXIT_SUCCESS"
+
+    echo "[INFO] Deployment completed successfully."
+    echo "[INFO] Application is live and healthy."
+
+    return "$EXIT_SUCCESS"
 }
 
 main "$@"
