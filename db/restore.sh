@@ -5,7 +5,7 @@ set -euo pipefail
 DB_NAME="appdb"
 BACKUP_DIR="/data/backups"
 
-APP_TARGET="/home/duyen/linux-final-project/app/app.py"
+APP_TARGET="/opt/myapp/app.py"
 STATUS_TARGET="/var/www/status.lab.local"
 
 usage() {
@@ -79,14 +79,11 @@ if [[ ! -d "$STATUS_BACKUP" ]]; then
 fi
 
 echo "[INFO] Restoring PostgreSQL database..."
-(
-    cd /tmp
-    sudo -u postgres psql \
-        --dbname="$DB_NAME" \
-        < "$DB_DUMP"
-)
+sudo cat "$DB_DUMP" | sudo -u postgres psql \
+    --dbname="$DB_NAME"
+
 echo "[INFO] Restoring Flask application source..."
-install -o duyen -g duyen -m 644 \
+install -o viet -g viet -m 644 \
     "$APP_BACKUP" \
     "$APP_TARGET"
 
@@ -96,28 +93,5 @@ cp -a "$STATUS_BACKUP/." "$STATUS_TARGET/"
 
 chown -R root:root "$STATUS_TARGET"
 
-echo "[INFO] Restarting Flask application..."
-systemctl restart flaskapp.service
-
-if ! systemctl is-active --quiet flaskapp.service; then
-    echo "[ERROR] flaskapp.service failed after restore." >&2
-    exit 1
-fi
-
-echo "[INFO] Waiting for Flask application to become ready..."
-
-for attempt in 1 2 3 4 5; do
-    if curl -fsS -m 5 http://127.0.0.1:5000/products >/dev/null; then
-        echo "[INFO] Flask application is active and responding."
-        break
-    fi
-
-    if [[ "$attempt" -eq 5 ]]; then
-        echo "[ERROR] Flask health check failed after 5 attempts." >&2
-        exit 1
-    fi
-
-    echo "[WARN] Flask not ready yet. Retrying in 2 seconds..."
-    sleep 2
-done
 echo "[INFO] Restore completed successfully."
+
