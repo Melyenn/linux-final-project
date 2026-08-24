@@ -248,3 +248,4 @@ echo "[INFO] Flask application is active and responding."
 # =========================================================
 
 echo "[INFO] Restore completed successfully."
+
