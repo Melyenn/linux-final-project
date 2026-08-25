@@ -151,9 +151,8 @@ fi
 # =========================================================
 
 echo "[INFO] Restoring PostgreSQL database..."
-cat "$DB_DUMP" | runuser -u postgres -- psql \
-            --set=ON_ERROR_STOP=1 \
-                --dbname="$DB_NAME"
+runuser -u postgres -- psql \
+        -d "$DB_NAME" > "$DB_DUMP"
 
 echo "[INFO] PostgreSQL database restored successfully."
 
