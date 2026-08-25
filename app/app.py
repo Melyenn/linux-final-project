@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 import psycopg2
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv('/etc/flaskapp/.env')
 
 DB_DATABASE = os.getenv("DB_DATABASE", default="appdb")
 DB_USER = os.getenv("DB_USER", default="appuser")

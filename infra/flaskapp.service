@@ -11,7 +11,7 @@ Group=duyen
 WorkingDirectory=/home/duyen/linux-final-project/app
 
 # Định nghĩa nạp biến môi trường bằng EnvironmentFile
-EnvironmentFile=/home/duyen/linux-final-project/.env
+EnvironmentFile=/etc/flaskapp/.env
 
 # Lệnh khởi chạy ứng dụng (Sử dụng python trong môi trường ảo - .venv)
 ExecStart=/home/duyen/linux-final-project/.venv/bin/python app.py
