@@ -82,22 +82,22 @@ dispatch_task() {
 # Sub-task routing procedures
 # shellcheck disable=SC2120
 task_deploy() {
-    dispatch_task "deploy.sh" "$@"
+    sudo "${SCRIPT_DIR}/deploy.sh" "$@"
 }
 
 # shellcheck disable=SC2120
 task_backup() {
-    dispatch_task "backup.sh" "$@"
+    sudo "${SCRIPT_DIR}/backup.sh" "$@"
 }
 
 # shellcheck disable=SC2120
 task_restore() {
-    dispatch_task "restore.sh" "$@"
+    sudo "${SCRIPT_DIR}/restore.sh" "$@"
 }
 
 # shellcheck disable=SC2120
 task_health_check() {
-    dispatch_task "health-check.sh" "$@"
+    sudo "${SCRIPT_DIR}/health-check.sh" "$@"
 }
 
 # shellcheck disable=SC2120
