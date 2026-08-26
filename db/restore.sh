@@ -152,7 +152,7 @@ fi
 
 echo "[INFO] Restoring PostgreSQL database..."
 runuser -u postgres -- psql \
-        -d "$DB_NAME" > "$DB_DUMP"
+        -d "$DB_NAME" < "$DB_DUMP"
 
 echo "[INFO] PostgreSQL database restored successfully."
 
